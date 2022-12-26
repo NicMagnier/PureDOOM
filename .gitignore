@@ -5,3 +5,8 @@ references/
 .DS_Store
 .vscode
 *.DLL
+playdate/*.pdx
+playdate/buildDevice
+playdate/buildSimulator
+*.sublime-project
+*.sublime-workspace

@@ -1,0 +1,5 @@
+name=PureDoom
+author=Nic Magnier
+description=Port of Doom using PureDoom
+bundleID=com.nicmagnier.PureDoom
+imagePath=
