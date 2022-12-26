@@ -1,4 +1,4 @@
-![](images/PureDOOM.png)
+![](images/PureDOOM1bit.png)
 
 # Pure DOOM Playdate
 Doom Port for the playdate using Pure Doom
