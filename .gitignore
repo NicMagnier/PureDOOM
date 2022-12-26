@@ -10,3 +10,5 @@ playdate/buildDevice
 playdate/buildSimulator
 *.sublime-project
 *.sublime-workspace
+*.acorn
+*.acorn

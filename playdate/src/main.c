@@ -19,7 +19,8 @@ PlaydateAPI*	playdate;
 
 int dithering_width;
 int dithering_height;
-byte* dithering_image;
+byte* bluenoise_image;
+byte dithering_image[400*240];
 
 uint8_t playdate_palette[256];
 
@@ -187,12 +188,12 @@ int core_update(__attribute__ ((unused)) void* userData)
 // 	PD_log( "callback" );
 // }
 
-void load_dithering_image()
+void load_bluenoise_image()
 {
 	SDFile* fileHandle;
 	int fileSize;
 
-	fileHandle = playdate->file->open("dithering.png.bin", kFileRead);
+	fileHandle = playdate->file->open("bluenoise.png.bin", kFileRead);
 
 	playdate->file->seek(fileHandle, 0, SEEK_END);
 	fileSize = playdate->file->tell(fileHandle);
@@ -200,10 +201,44 @@ void load_dithering_image()
 
 	char* fileBuffer = PD_malloc(fileSize);
 	playdate->file->read(fileHandle, fileBuffer, fileSize);
-	dithering_image = (byte*)stbi_load_from_memory(fileBuffer, fileSize, &dithering_width, &dithering_height, NULL, 1);
+	bluenoise_image = (byte*)stbi_load_from_memory(fileBuffer, fileSize, &dithering_width, &dithering_height, NULL, 1);
 
 	PD_free(fileBuffer);
 	playdate->file->close(fileHandle);
+}
+
+const byte bayern_filter_44[4][4]={
+	{15,195,61,240},
+	{135,75,180,120},
+	{45,225,30,210},
+	{165,105,150,90}
+};
+void generate_dithering_image( float bluenoise_ratio )
+{
+	float bayern_ratio = 1.f - bluenoise_ratio;
+
+	for (int y = 0; y < 240; y++)
+	{
+		for (int x = 0; x < 400; x++)
+		{
+			int pixel_index = x+y*400;
+
+			float bluenoise_value = (float)bluenoise_image[pixel_index];
+			float bayern_value = (float)bayern_filter_44[y%4][x%4];
+
+			float final_value = bluenoise_value*bluenoise_ratio + bayern_value*bayern_ratio;
+
+			dithering_image[pixel_index] = (byte)final_value;
+		}
+	}
+}
+
+
+const char *noiseOptions[] = {"0", "1", "2", "3", "4"};
+PDMenuItem *noiseOptionMenuItem;
+void noiseMenuOptionsCallback(void* userdata)
+{
+	generate_dithering_image( (float)playdate->system->getMenuItemValue( noiseOptionMenuItem ) / 4.f );
 }
 
 int eventHandler(PlaydateAPI* pd, PDSystemEvent event, __attribute__ ((unused)) uint32_t arg)
@@ -215,7 +250,9 @@ int eventHandler(PlaydateAPI* pd, PDSystemEvent event, __attribute__ ((unused)) 
 		playdate->display->setRefreshRate(30);
 		playdate->system->setUpdateCallback(core_update, NULL);
 		playdate->graphics->clear( kColorBlack);
-		playdate->graphics->clear( kColorBlack);
+
+		noiseOptionMenuItem = playdate->system->addOptionsMenuItem("Noise", noiseOptions, 5, noiseMenuOptionsCallback, NULL);
+		playdate->system->setMenuItemValue( noiseOptionMenuItem, 3);
 
 		// pAudioSample = playdate->sound->sample->newSampleFromData( audioBuffer, kSound16bitStereo, DOOM_SAMPLERATE, AUDIO_BUFFER_SIZE);
 		// pAudioPlayer = playdate->sound->sampleplayer->newPlayer();
@@ -224,7 +261,8 @@ int eventHandler(PlaydateAPI* pd, PDSystemEvent event, __attribute__ ((unused)) 
 		// playdate->sound->sampleplayer->play( pAudioPlayer, 0, 1.0);
 
 		// Load data
-		load_dithering_image();
+		load_bluenoise_image();
+		generate_dithering_image( .5f );
 
 		// Init Pure Doom
 		doom_set_print( core_print );
