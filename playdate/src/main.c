@@ -15,6 +15,10 @@
 #define STBI_FREE PD_free
 #include "stb_image.h"
 
+#define MIN(A,B)		(((A)<(B)) ? (A) : (B))
+#define MAX(A,B)		(((A)>(B)) ? (A) : (B))
+#define CLAMP(V,A,B)	(MIN(MAX(V,A),B))
+
 PlaydateAPI*	playdate;
 
 int dithering_width;
