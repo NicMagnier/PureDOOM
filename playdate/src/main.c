@@ -21,6 +21,14 @@
 
 PlaydateAPI*	playdate;
 
+const char *noiseOptions[] = {"0", "1", "2", "3", "4", "Full"};
+PDMenuItem *noiseOptionMenuItem;
+float		noise_value;
+
+const char *bayernOptions[] = {"2x2","4x4"};
+PDMenuItem *bayernOptionMenuItem;
+int			bayern_type = 0;
+
 int dithering_width;
 int dithering_height;
 byte* bluenoise_image;
@@ -211,14 +219,25 @@ void load_bluenoise_image()
 	playdate->file->close(fileHandle);
 }
 
+const byte bayern_filter_22[2][2]={
+	{51,204},
+	{153,102},
+};
 const byte bayern_filter_44[4][4]={
 	{15,195,61,240},
 	{135,75,180,120},
 	{45,225,30,210},
 	{165,105,150,90}
 };
-void generate_dithering_image( float bluenoise_ratio )
+void generate_dithering_image()
 {
+	if ( noise_value<0.f )
+	{
+		memcpy( dithering_image, bluenoise_image, 400*240);
+		return;
+	}
+
+	// use bayen filter and ad some blue noise in it
 	for (int y = 0; y < 240; y++)
 	{
 		for (int x = 0; x < 400; x++)
@@ -227,11 +246,11 @@ void generate_dithering_image( float bluenoise_ratio )
 
 			float bluenoise_value = (float)bluenoise_image[pixel_index];
 			float bluenoise_value_01 = bluenoise_value / 255.f;
-			float bayern_value = (float)bayern_filter_44[y%4][x%4];
+			float bayern_value = (float)(bayern_type ? bayern_filter_44[y%4][x%4] : bayern_filter_22[y%2][x%2]);
 
 			float noise_amplitude = MIN( bayern_value, 255.f - bayern_value);
 
-			float final_value = bayern_value + noise_amplitude*bluenoise_ratio*(bluenoise_value_01-0.5f);
+			float final_value = bayern_value + noise_amplitude*noise_value*(bluenoise_value_01-0.5f);
 
 			dithering_image[pixel_index] = (byte)final_value;
 		}
@@ -239,11 +258,25 @@ void generate_dithering_image( float bluenoise_ratio )
 }
 
 
-const char *noiseOptions[] = {"0", "1", "2", "3", "4"};
-PDMenuItem *noiseOptionMenuItem;
 void noiseMenuOptionsCallback(void* userdata)
 {
-	generate_dithering_image( (float)playdate->system->getMenuItemValue( noiseOptionMenuItem ) / 4.f );
+	float noise_type = playdate->system->getMenuItemValue( noiseOptionMenuItem );
+	if ( noise_type==5 )
+	{
+		noise_value = -1.f;
+	}
+	else
+	{
+		noise_value = (float)noise_type / 4.f;
+	}
+
+	generate_dithering_image();
+}
+
+void bayernMenuOptionsCallback(void* userdata)
+{
+	bayern_type = playdate->system->getMenuItemValue( bayernOptionMenuItem );
+	generate_dithering_image();
 }
 
 int eventHandler(PlaydateAPI* pd, PDSystemEvent event, __attribute__ ((unused)) uint32_t arg)
@@ -256,8 +289,12 @@ int eventHandler(PlaydateAPI* pd, PDSystemEvent event, __attribute__ ((unused)) 
 		playdate->system->setUpdateCallback(core_update, NULL);
 		playdate->graphics->clear( kColorBlack);
 
-		noiseOptionMenuItem = playdate->system->addOptionsMenuItem("Noise", noiseOptions, 5, noiseMenuOptionsCallback, NULL);
-		playdate->system->setMenuItemValue( noiseOptionMenuItem, 3);
+		bayernOptionMenuItem = playdate->system->addOptionsMenuItem("Bayern", bayernOptions, 2, bayernMenuOptionsCallback, NULL);
+		playdate->system->setMenuItemValue( bayernOptionMenuItem, bayern_type);
+
+		noiseOptionMenuItem = playdate->system->addOptionsMenuItem("Noise", noiseOptions, 6, noiseMenuOptionsCallback, NULL);
+		playdate->system->setMenuItemValue( noiseOptionMenuItem, 2);
+		noise_value = 2.f / 4.f;
 
 		// pAudioSample = playdate->sound->sample->newSampleFromData( audioBuffer, kSound16bitStereo, DOOM_SAMPLERATE, AUDIO_BUFFER_SIZE);
 		// pAudioPlayer = playdate->sound->sampleplayer->newPlayer();
