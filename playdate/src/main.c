@@ -219,8 +219,6 @@ const byte bayern_filter_44[4][4]={
 };
 void generate_dithering_image( float bluenoise_ratio )
 {
-	float bayern_ratio = 1.f - bluenoise_ratio;
-
 	for (int y = 0; y < 240; y++)
 	{
 		for (int x = 0; x < 400; x++)
@@ -228,9 +226,12 @@ void generate_dithering_image( float bluenoise_ratio )
 			int pixel_index = x+y*400;
 
 			float bluenoise_value = (float)bluenoise_image[pixel_index];
+			float bluenoise_value_01 = bluenoise_value / 255.f;
 			float bayern_value = (float)bayern_filter_44[y%4][x%4];
 
-			float final_value = bluenoise_value*bluenoise_ratio + bayern_value*bayern_ratio;
+			float noise_amplitude = MIN( bayern_value, 255.f - bayern_value);
+
+			float final_value = bayern_value + noise_amplitude*bluenoise_ratio*(bluenoise_value_01-0.5f);
 
 			dithering_image[pixel_index] = (byte)final_value;
 		}
