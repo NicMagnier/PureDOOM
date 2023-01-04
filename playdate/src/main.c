@@ -23,7 +23,7 @@ PlaydateAPI*	playdate;
 
 const char *noiseOptions[] = {"0", "1", "2", "3", "4", "Full"};
 PDMenuItem *noiseOptionMenuItem;
-float		noise_value;
+float		noise_level;
 
 const char *bayernOptions[] = {"2x2","4x4"};
 PDMenuItem *bayernOptionMenuItem;
@@ -231,7 +231,7 @@ const byte bayern_filter_44[4][4]={
 };
 void generate_dithering_image()
 {
-	if ( noise_value<0.f )
+	if ( noise_level<0.f )
 	{
 		memcpy( dithering_image, bluenoise_image, 400*240);
 		return;
@@ -250,7 +250,7 @@ void generate_dithering_image()
 
 			float noise_amplitude = MIN( bayern_value, 255.f - bayern_value);
 
-			float final_value = bayern_value + noise_amplitude*noise_value*(bluenoise_value_01-0.5f);
+			float final_value = bayern_value + noise_amplitude*noise_level*(bluenoise_value_01-0.5f)*2.f;
 
 			dithering_image[pixel_index] = (byte)final_value;
 		}
@@ -263,11 +263,12 @@ void noiseMenuOptionsCallback(void* userdata)
 	float noise_type = playdate->system->getMenuItemValue( noiseOptionMenuItem );
 	if ( noise_type==5 )
 	{
-		noise_value = -1.f;
+		noise_level = -1.f;
 	}
 	else
 	{
-		noise_value = (float)noise_type / 4.f;
+		noise_level = (float)noise_type / 4.f;
+		noise_level*= 0.5f;
 	}
 
 	generate_dithering_image();
@@ -294,7 +295,8 @@ int eventHandler(PlaydateAPI* pd, PDSystemEvent event, __attribute__ ((unused)) 
 
 		noiseOptionMenuItem = playdate->system->addOptionsMenuItem("Noise", noiseOptions, 6, noiseMenuOptionsCallback, NULL);
 		playdate->system->setMenuItemValue( noiseOptionMenuItem, 2);
-		noise_value = 2.f / 4.f;
+		noise_level = 2.f / 4.f;
+		noise_level*= 0.5f;
 
 		// pAudioSample = playdate->sound->sample->newSampleFromData( audioBuffer, kSound16bitStereo, DOOM_SAMPLERATE, AUDIO_BUFFER_SIZE);
 		// pAudioPlayer = playdate->sound->sampleplayer->newPlayer();
